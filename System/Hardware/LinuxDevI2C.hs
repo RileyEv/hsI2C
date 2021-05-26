@@ -23,6 +23,7 @@ module System.Hardware.LinuxDevI2C
  ,setSlaveAddrForce
  ,writeByte
  ,writeByteData
+ ,writeWordData
  ,readByte
  ,readByteData
  ,readI2CBlockData
@@ -41,7 +42,7 @@ import Foreign.Ptr (Ptr (..))
 import Foreign.Ptr (Ptr (..),castPtr)
 import GHC.Stack (HasCallStack,callStack,prettyCallStack)
 import Control.Exception.Base (bracket)
-import Data.Word (Word8)
+import Data.Word (Word8, Word16)
 import Control.Monad
        
 type Addr = Word8
@@ -86,7 +87,10 @@ readByte (Fd file)
 readByteData :: HasCallStack => Device -> Command -> IO Word8
 readByteData (Fd file) cmd
    = castRet fromIntegral $ c_readByteData file (fromIntegral cmd)
-          
+
+writeWordData :: HasCallStack => Device -> Command -> Word16 -> IO ()
+writeWordData (Fd file) cmd word = checkReturn $ c_writeWordData file (fromIntegral cmd) (fromIntegral word)
+     
 readI2CBlockData :: HasCallStack => Device -> Command -> Int -> IO ByteString
 readI2CBlockData (Fd file) cmd size = do
    checkBlockSizeLimit size
