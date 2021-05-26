@@ -1,5 +1,5 @@
 name:                hsI2C
-version:             0.1.3.1
+version:             0.1.4.0
 synopsis:            I2C access for Haskell and Linux
 description:         I2C access for Haskell and Linux
                       
