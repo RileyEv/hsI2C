@@ -21,6 +21,8 @@ module System.Hardware.LinuxDevI2C
  ,closeDevice
  ,setSlaveAddr
  ,setSlaveAddrForce
+ ,writeQuick
+ ,writeQuick_
  ,writeByte
  ,writeByteData
  ,writeWordData
@@ -38,8 +40,7 @@ import System.Posix.Types (Fd(..))
 import Foreign.C.Types
 import Foreign.C.Error (Errno (..), errnoToIOError) 
 import Foreign.ForeignPtr (withForeignPtr,withForeignPtr,mallocForeignPtrBytes)
-import Foreign.Ptr (Ptr (..))
-import Foreign.Ptr (Ptr (..),castPtr)
+import Foreign.Ptr (Ptr, castPtr)
 import GHC.Stack (HasCallStack,callStack,prettyCallStack)
 import Control.Exception.Base (bracket)
 import Data.Word (Word8, Word16)
@@ -48,12 +49,12 @@ import Control.Monad
 type Addr = Word8
 type Command = Word8
 type Device = Fd
-type File=CInt
+type File = CInt
 
 -- | Open an I2C device run, an IO action and close the device again.
 -- A device file on Linux could be for example //dev//i2c-7. 
 withDevice :: FilePath -> (Device -> IO a) -> IO a
-withDevice fp action = bracket (openDevice fp) closeDevice action
+withDevice fp = bracket (openDevice fp) closeDevice
 
 -- | Open an I2C Device.                    
 openDevice :: FilePath -> IO Device
@@ -90,7 +91,13 @@ readByteData (Fd file) cmd
 
 writeWordData :: HasCallStack => Device -> Command -> Word16 -> IO ()
 writeWordData (Fd file) cmd word = checkReturn $ c_writeWordData file (fromIntegral cmd) (fromIntegral word)
-     
+
+writeQuick :: HasCallStack => Device -> Word8 -> IO ()
+writeQuick (Fd file) word = checkReturn $ c_writeQuick file (fromIntegral word)
+  
+writeQuick_ :: HasCallStack => Device -> Word8 -> IO CInt
+writeQuick_ (Fd file) word = c_writeQuick file (fromIntegral word)
+
 readI2CBlockData :: HasCallStack => Device -> Command -> Int -> IO ByteString
 readI2CBlockData (Fd file) cmd size = do
    checkBlockSizeLimit size
@@ -126,10 +133,9 @@ checkBlockSizeLimit s
 checkReturn :: HasCallStack => IO CInt -> IO ()
 checkReturn action = do
    ret <- action
-   if ret < 0
-      then ioError $ errnoToIOError (prettyCallStack callStack)
+   when (ret < 0) $
+      ioError $ errnoToIOError (prettyCallStack callStack)
                       (Errno ret) Nothing Nothing
-      else return ()
    
 castRet :: HasCallStack => (CInt -> a) -> IO CInt -> IO a
 castRet cast action = do
